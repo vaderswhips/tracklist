@@ -11,21 +11,31 @@ const redis = new Redis({
 });
 
 const SYSTEM = `You are the event-sourcing engine for TrackList, a UAE car-scene events app.
-Use the web_search tool to find REAL, upcoming car-related events in the United Arab Emirates
-over roughly the next 35 days. Categories: Track Day, Drift, Drag, Meet, Cars & Coffee, Show.
-Search official + reliable sources: Dubai Autodrome, Yas Marina Circuit, Platinumlist, Dubai
-Calendar, venue and organizer Instagram/sites, and reputable listings.
+Use the web_search tool to find upcoming car-related events in the United Arab Emirates over the
+next ~35 days. Categories: Track Day, Drift, Drag, Meet, Cars & Coffee, Show.
+Good sources: Dubai Autodrome, Yas Marina Circuit, Platinumlist, Dubai Calendar, time out Dubai,
+venue and organizer pages, and reputable event listings.
 
-RULES:
-- Only include events you actually found a source for. Never invent dates, prices, or venues.
-- If you are unsure of a detail, leave it null rather than guessing.
-- Every event MUST include the source URL you found it on.
-- Dates must be ISO YYYY-MM-DD. Skip anything in the past or with no findable date.
+IMPORTANT — you DO have working web search. Run several searches, read the results, and base your
+output on what you find. Do not claim search is unavailable; if a search returns little, try a
+different query (e.g. "Dubai Autodrome track day 2026", "UAE car meet this month", "Yas Marina
+trackday tickets", "car show Dubai 2026").
 
-Respond with ONLY a JSON array (no prose, no markdown fences), each item:
+INCLUSION RULES (balanced — do not return an empty list just to be safe):
+- Include events you found referenced in search results, including recurring/regular events that
+  reliable sources describe (e.g. a weekly Cars & Coffee, a venue's regular track nights).
+- Prefer events with a specific date. If a real recurring event has no exact published date but
+  clearly recurs (e.g. "every Saturday"), include it with your best date estimate for the next
+  occurrence and set confidence "medium".
+- Do NOT fabricate a specific named event that no source mentions. But you do not need a perfect
+  official listing for every field — partial info with a source link is fine; leave unknown fields null.
+- Every event should have a source URL from your search results.
+- Dates ISO YYYY-MM-DD, in the future. Aim for 6-15 events if the scene supports it.
+
+After searching, respond with ONLY a JSON array (no prose, no markdown fences), each item:
 {"title","type","emirate","venue","date","time","price","desc","source","confidence"}
 "type" is one of the categories above. "emirate" one of: Dubai, Abu Dhabi, Sharjah, RAK, Ajman, Fujairah, UMQ, Al Ain.
-"confidence" is "high" if from an official venue/ticketing source, else "medium".`;
+"confidence" is "high" for official venue/ticketing sources, else "medium".`;
 
 export default async function handler(req, res) {
   // Auth: Vercel Cron sends Bearer <CRON_SECRET>. For manual browser testing,
@@ -86,7 +96,7 @@ async function crawl(debug) {
   let searchCount = 0;
   let rateLimited = false;
   let rateLimitWaits = 0;
-  for (let turn = 0; turn < 3; turn++) {
+  for (let turn = 0; turn < 6; turn++) {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -96,10 +106,10 @@ async function crawl(debug) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: 2000,
+        max_tokens: 4000,
         system: SYSTEM,
         messages,
-        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
+        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 6 }],
       }),
     });
     const data = await r.json();
@@ -134,6 +144,31 @@ async function crawl(debug) {
     // (web_search is a server tool), so we just continue the loop to let it read results.
     if (data.stop_reason === 'tool_use') continue;
     break;
+  }
+
+  // If we never got a JSON array (e.g. ran out of turns mid-search), ask once more
+  // for the final answer based on everything searched so far — no new searches.
+  if (!/\[/.test(finalText)) {
+    messages.push({
+      role: 'user',
+      content: 'Based on the search results above, output the final JSON array of events now. ONLY the JSON array, no prose. If you genuinely found nothing, return [].',
+    });
+    try {
+      const r2 = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 4000, system: SYSTEM, messages }),
+      });
+      const d2 = await r2.json();
+      if (!d2.error) {
+        const t2 = (d2.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+        if (t2) finalText = t2;
+      }
+    } catch (e) { /* keep what we have */ }
   }
 
   return { events: parseEvents(finalText), raw: finalText, searchCount, rateLimited };
