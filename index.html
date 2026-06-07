@@ -116,6 +116,40 @@
     margin:0 auto 16px;animation:sp .8s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
 
+  /* ---- Home screen ---- */
+  .home{padding:6px 18px 110px;animation:rise .4s ease both}
+  .hero{margin:8px 0 22px}
+  .hero h1{font-family:'Bebas Neue';font-size:38px;line-height:.95;letter-spacing:1px;margin-bottom:8px}
+  .hero h1 .ae{color:var(--red)}
+  .hero p{font-size:14px;color:var(--muted);line-height:1.5;max-width:300px}
+  .sec-label{font-family:'Bebas Neue';font-size:15px;letter-spacing:1.2px;color:var(--red);
+    margin:22px 2px 11px;display:flex;align-items:center;gap:8px}
+  .sec-label .ln{flex:1;height:1px;background:var(--line)}
+  .upnext{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:15px;
+    margin-bottom:10px;display:flex;gap:14px;align-items:center;cursor:pointer;transition:.15s;position:relative;overflow:hidden}
+  .upnext:active{background:var(--surface-2)}
+  .upnext::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--red)}
+  .upnext .when{flex-shrink:0;text-align:center;width:52px}
+  .upnext .when .d{font-family:'Bebas Neue';font-size:30px;line-height:.85}
+  .upnext .when .m{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+  .upnext .info{flex:1;min-width:0}
+  .upnext .info .t{font-size:15px;font-weight:700;line-height:1.2;margin-bottom:4px}
+  .upnext .info .sub{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:3px 10px}
+  .upnext .rel{flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+    color:var(--red);background:rgba(225,29,42,.12);padding:4px 8px;border-radius:6px}
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+  .tile{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 15px;
+    cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:9px}
+  .tile:active{background:var(--surface-2)}
+  .tile svg{width:24px;height:24px;color:var(--red)}
+  .tile .tt{font-family:'Bebas Neue';font-size:18px;letter-spacing:.8px}
+  .tile .ts{font-size:11.5px;color:var(--muted);line-height:1.35}
+  .home-promo{margin-top:10px;border-radius:16px;padding:16px;background:linear-gradient(105deg,#1a0608,var(--surface));
+    border:1px solid rgba(225,29,42,.3);display:flex;align-items:center;gap:13px;text-decoration:none}
+  .home-promo .pi{font-family:'Bebas Neue';font-size:22px;color:var(--red);letter-spacing:1px}
+  .home-promo p{font-size:12.5px;color:var(--muted);line-height:1.4;flex:1}
+  .home-promo .go{font-size:18px;color:var(--red)}
+
   .promo{margin:18px 0 4px;border-radius:16px;padding:15px 16px;background:linear-gradient(105deg,#1a0608,var(--surface));
     border:1px solid rgba(225,29,42,.3);display:flex;align-items:center;gap:13px;text-decoration:none}
   .promo .pi{font-family:'Bebas Neue';font-size:21px;color:var(--red);letter-spacing:1px}
@@ -163,8 +197,9 @@
   <div class="body" id="body"><div class="loading"><div class="spin"></div>Finding UAE car events…</div></div>
 
   <div class="nav">
-    <div class="navbtn active" onclick="goTab('all')"><svg viewBox="0 0 24 24" fill="none"><path d="M8 2v3M16 2v3M3.5 9h17M5 5h14a1.5 1.5 0 011.5 1.5V20A1.5 1.5 0 0119 21.5H5A1.5 1.5 0 013.5 20V6.5A1.5 1.5 0 015 5z" stroke="currentColor" stroke-width="1.8"/></svg>Events</div>
-    <div class="navbtn" onclick="goTab('saved')"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-9.5-9C.8 8.6 2.5 5 6 5c2 0 3.2 1.2 4 2.5C10.8 6.2 12 5 14 5c3.5 0 5.2 3.6 3.5 7-2.5 4.5-5.5 9-5.5 9z" stroke="currentColor" stroke-width="1.8"/></svg>Tracking</div>
+    <div class="navbtn active" id="navHome" onclick="goTab('home')"><svg viewBox="0 0 24 24" fill="none"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Home</div>
+    <div class="navbtn" id="navEvents" onclick="goTab('all')"><svg viewBox="0 0 24 24" fill="none"><path d="M8 2v3M16 2v3M3.5 9h17M5 5h14a1.5 1.5 0 011.5 1.5V20A1.5 1.5 0 0119 21.5H5A1.5 1.5 0 013.5 20V6.5A1.5 1.5 0 015 5z" stroke="currentColor" stroke-width="1.8"/></svg>Events</div>
+    <div class="navbtn" id="navSaved" onclick="goTab('saved')"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-9.5-9C.8 8.6 2.5 5 6 5c2 0 3.2 1.2 4 2.5C10.8 6.2 12 5 14 5c3.5 0 5.2 3.6 3.5 7-2.5 4.5-5.5 9-5.5 9z" stroke="currentColor" stroke-width="1.8"/></svg>Tracking</div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -175,7 +210,7 @@ const MONTHS=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV',
 const MONTHS_F=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DOW=['S','M','T','W','T','F','S'];
 
-let EVENTS=[], saved={}, filter='All', tab='all', view='list';
+let EVENTS=[], saved={}, filter='All', tab='home', view='list';
 let calMonth=new Date().getMonth(), calYear=new Date().getFullYear(), selDay=null;
 
 // saved set persists locally per device (localStorage works on real Vercel deploy)
@@ -214,10 +249,9 @@ async function init(){
       document.getElementById('refreshmark').textContent='offline';
     }
   }
-  render();
+  goTab('home');
 }
 function rel(d){const m=Math.round((Date.now()-d)/60000);if(m<60)return m+'m ago';const h=Math.round(m/60);if(h<24)return h+'h ago';return Math.round(h/24)+'d ago';}
-
 function buildFilters(){
   const fc=document.getElementById('filters');fc.innerHTML='';
   TYPES.forEach(t=>{const c=document.createElement('div');c.className='chip'+(t==='All'?' active':'');c.textContent=t;
@@ -226,16 +260,81 @@ function buildFilters(){
 }
 function setView(v){view=v;document.getElementById('vbList').classList.toggle('active',v==='list');
   document.getElementById('vbCal').classList.toggle('active',v==='cal');render();}
-function goTab(t){tab=t;document.querySelectorAll('.navbtn').forEach((b,i)=>b.classList.toggle('active',(t==='all'&&i===0)||(t==='saved'&&i===1)));
-  if(t==='saved')setView('list');render();}
+function goTab(t){
+  tab=t;
+  document.getElementById('navHome').classList.toggle('active',t==='home');
+  document.getElementById('navEvents').classList.toggle('active',t==='all');
+  document.getElementById('navSaved').classList.toggle('active',t==='saved');
+  // Home hides the list/calendar toggle and filter chips; other tabs show them.
+  const onHome=t==='home';
+  document.querySelector('.vtoggle').style.display=onHome?'none':'flex';
+  document.getElementById('filters').style.display=onHome?'none':'flex';
+  if(t==='saved')setView('list');
+  render();
+}
 
 function visible(){let l=EVENTS;if(filter!=='All')l=l.filter(e=>e.type===filter);if(tab==='saved')l=l.filter(e=>saved[e.id]);return l;}
 
 function toggleSave(id){saved[id]=!saved[id];persist();toast(saved[id]?'Tracking this event':'Removed');render();}
 
+function renderHome(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const upcoming=[...EVENTS].filter(e=>new Date(e.date+'T00:00:00')>=today).sort((a,b)=>a.date.localeCompare(b.date));
+  const trackedCount=Object.values(saved).filter(Boolean).length;
+
+  let next='';
+  if(upcoming.length){
+    next='<div class="sec-label">Next up<span class="ln"></span></div>';
+    upcoming.slice(0,2).forEach(e=>{
+      const dt=new Date(e.date+'T00:00:00');
+      const diff=Math.round((dt-today)/86400000);
+      let relTxt= diff===0?'Today': diff===1?'Tomorrow': diff<7?diff+' days': dt.getDate()+' '+MONTHS[dt.getMonth()];
+      const sub=[esc(e.venue),esc(e.emirate)];if(e.time)sub.push(esc(e.time));
+      next+=`<div class="upnext" onclick="goTab('all')">
+        <div class="when"><div class="d">${dt.getDate()}</div><div class="m">${MONTHS[dt.getMonth()]}</div></div>
+        <div class="info"><div class="t">${esc(e.title)}</div><div class="sub">${sub.map(s=>`<span>${s}</span>`).join('')}</div></div>
+        <div class="rel">${relTxt}</div>
+      </div>`;
+    });
+  }
+
+  return `
+    <div class="hero">
+      <h1>EVERY UAE CAR<br>EVENT, <span class="ae">ONE PLACE.</span></h1>
+      <p>Track days, drift nights, meets and shows across the Emirates — so you never miss one.</p>
+    </div>
+    ${next}
+    <div class="sec-label">Browse<span class="ln"></span></div>
+    <div class="tiles">
+      <div class="tile" onclick="goTab('all');setView('cal')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M8 2v3M16 2v3M3.5 9h17M5 5h14a1.5 1.5 0 011.5 1.5V20A1.5 1.5 0 0119 21.5H5A1.5 1.5 0 013.5 20V6.5A1.5 1.5 0 015 5z" stroke="currentColor" stroke-width="1.8"/></svg>
+        <div class="tt">Calendar</div><div class="ts">See everything by date</div>
+      </div>
+      <div class="tile" onclick="goTab('all');setView('list')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <div class="tt">All Events</div><div class="ts">${upcoming.length} coming up</div>
+      </div>
+      <div class="tile" onclick="goTab('saved')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-9.5-9C.8 8.6 2.5 5 6 5c2 0 3.2 1.2 4 2.5C10.8 6.2 12 5 14 5c3.5 0 5.2 3.6 3.5 7-2.5 4.5-5.5 9-5.5 9z" stroke="currentColor" stroke-width="1.8"/></svg>
+        <div class="tt">Tracking</div><div class="ts">${trackedCount} event${trackedCount===1?'':'s'} saved</div>
+      </div>
+      <div class="tile" onclick="goTab('all')">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.5-4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <div class="tt">Explore</div><div class="ts">Filter by type & emirate</div>
+      </div>
+    </div>
+    <a class="home-promo" href="https://parthunter.ae" target="_blank">
+      <div class="pi">PH</div>
+      <p>Prepping a build for track day? Find performance parts on <b style="color:#fff">PartHunter.ae</b></p>
+      <div class="go">→</div>
+    </a>`;
+}
+
 function render(){
   const cnt=Object.values(saved).filter(Boolean).length;
   const body=document.getElementById('body');
+  if(tab==='home'){ body.className='home'; body.innerHTML=renderHome(); return; }
+  body.className='body';
   if(view==='cal'&&tab==='all'){body.innerHTML=calendarHTML();return;}
 
   let list=visible();
