@@ -3,6 +3,6 @@
     { "path": "/api/refresh", "schedule": "0 2 * * *" }
   ],
   "functions": {
-    "api/refresh.js": { "maxDuration": 60 }
+    "api/refresh.js": { "maxDuration": 300 }
   }
 }
