@@ -3,7 +3,12 @@
 // to find current UAE car events, then stores the result in Vercel KV.
 // The app reads the stored list; it never calls Claude on page load.
 
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN,
+});
 
 const SYSTEM = `You are the event-sourcing engine for TrackList, a UAE car-scene events app.
 Use the web_search tool to find REAL, upcoming car-related events in the United Arab Emirates
@@ -36,7 +41,7 @@ export default async function handler(req, res) {
       updatedAt: new Date().toISOString(),
       count: events.length,
     };
-    await kv.set('tracklist:events', payload);
+    await redis.set('tracklist:events', payload);
     return res.status(200).json({ ok: true, count: events.length, updatedAt: payload.updatedAt });
   } catch (err) {
     console.error('refresh failed', err);

@@ -3,12 +3,17 @@
 // If the cache is empty (e.g. first deploy before cron runs), it triggers
 // a one-off crawl so the app is never blank on day one.
 
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN,
+});
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=3600');
   try {
-    let payload = await kv.get('tracklist:events');
+    let payload = await redis.get('tracklist:events');
 
     if (!payload || !payload.events || payload.events.length === 0) {
       // Cold start: build it once, inline, so the first visitor sees data.
@@ -16,7 +21,7 @@ export default async function handler(req, res) {
       await fetch(`${base}/api/refresh`, {
         headers: process.env.CRON_SECRET ? { authorization: `Bearer ${process.env.CRON_SECRET}` } : {},
       }).catch(() => {});
-      payload = await kv.get('tracklist:events');
+      payload = await redis.get('tracklist:events');
     }
 
     return res.status(200).json(payload || { events: [], updatedAt: null, count: 0 });
