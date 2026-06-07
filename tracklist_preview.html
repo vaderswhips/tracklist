@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TrackList · UAE Car Events</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0b">
+<link rel="manifest" href="/manifest.webmanifest">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap');
+  :root{
+    --bg:#0a0a0b;--surface:#141416;--surface-2:#1c1c1f;--line:#26262a;
+    --red:#e11d2a;--red-dim:#7a1118;--text:#f4f4f5;--muted:#8b8b92;--faint:#5a5a60;--green:#1f9d55;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{background:#000;font-family:'DM Sans',sans-serif}
+  .phone{max-width:420px;margin:0 auto;min-height:100vh;background:var(--bg);color:var(--text);
+    position:relative;overflow-x:hidden;background-image:radial-gradient(circle at 80% -10%,rgba(225,29,42,.10),transparent 45%)}
+
+  .topbar{position:sticky;top:0;z-index:40;background:rgba(10,10,11,.82);backdrop-filter:blur(18px);
+    border-bottom:1px solid var(--line);padding:14px 18px 0}
+  .brandrow{display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:9px}
+  .mark{width:30px;height:30px;border-radius:8px;background:var(--red);display:grid;place-items:center;
+    flex-shrink:0;box-shadow:0 0 18px rgba(225,29,42,.4)}
+  .mark svg{width:18px;height:18px}
+  .wordmark{font-family:'Bebas Neue';font-size:25px;letter-spacing:1.5px;line-height:1}
+  .wordmark .ae{color:var(--red)}
+  .tagline{font-size:10.5px;color:var(--muted);letter-spacing:.5px;margin-top:1px}
+  .refreshmark{font-size:10px;color:var(--faint);text-align:right;line-height:1.3}
+  .refreshmark b{color:var(--muted);font-weight:700}
+
+  /* view toggle: List | Calendar */
+  .vtoggle{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    padding:3px;margin:13px 0 0}
+  .vbtn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;border-radius:7px;
+    font-size:12.5px;font-weight:700;letter-spacing:.4px;color:var(--muted);cursor:pointer;transition:.18s}
+  .vbtn svg{width:15px;height:15px}
+  .vbtn.active{background:var(--red);color:#fff;box-shadow:0 0 14px rgba(225,29,42,.3)}
+
+  .filters{display:flex;gap:7px;overflow-x:auto;padding:13px 18px 14px;scrollbar-width:none}
+  .filters::-webkit-scrollbar{display:none}
+  .chip{flex-shrink:0;font-size:12px;font-weight:500;letter-spacing:.3px;padding:7px 13px;border-radius:99px;
+    border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;transition:.18s;white-space:nowrap}
+  .chip.active{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 0 14px rgba(225,29,42,.35)}
+
+  .body{padding:4px 18px 110px}
+
+  /* ---- Calendar ---- */
+  .cal{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 12px 8px;margin-top:4px}
+  .calhead{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 12px}
+  .calhead .mo{font-family:'Bebas Neue';font-size:24px;letter-spacing:1.5px}
+  .calnav{display:flex;gap:6px}
+  .calnav button{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);
+    color:var(--text);cursor:pointer;display:grid;place-items:center}
+  .calnav button svg{width:15px;height:15px}
+  .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+  .dow{text-align:center;font-size:9.5px;font-weight:700;letter-spacing:.5px;color:var(--faint);padding:4px 0 7px}
+  .cell{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:3px;font-size:13px;color:var(--text);cursor:pointer;position:relative;border:1px solid transparent;transition:.15s}
+  .cell.empty{cursor:default}
+  .cell.muted{color:var(--faint)}
+  .cell.today{border-color:var(--red);color:#fff;font-weight:700}
+  .cell.sel{background:var(--red);color:#fff}
+  .cell.sel .dot{background:#fff!important}
+  .cell:not(.empty):not(.sel):active{background:var(--surface-2)}
+  .dots{display:flex;gap:2px;height:4px}
+  .dot{width:4px;height:4px;border-radius:50%;background:var(--red)}
+
+  .seldate{font-family:'Bebas Neue';font-size:16px;letter-spacing:1.2px;color:var(--red);margin:18px 2px 10px;
+    display:flex;align-items:center;gap:8px}
+  .seldate .ln{flex:1;height:1px;background:var(--line)}
+
+  /* ---- Day header (list view) ---- */
+  .dayhead{font-family:'Bebas Neue';font-size:15px;letter-spacing:1.2px;color:var(--red);
+    margin:16px 2px 10px;display:flex;align-items:center;gap:8px}
+  .dayhead .ln{flex:1;height:1px;background:var(--line)}
+
+  /* ---- Card ---- */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:15px;margin-bottom:11px;
+    position:relative;overflow:hidden;animation:rise .35s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--red);opacity:0;transition:.2s}
+  .card.saved::before{opacity:1}
+  .ctop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .ctype{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--red);
+    background:rgba(225,29,42,.10);border:1px solid rgba(225,29,42,.25);padding:3px 8px;border-radius:6px;display:inline-block}
+  .cdate{text-align:right;flex-shrink:0}
+  .cdate .d{font-family:'Bebas Neue';font-size:26px;line-height:.9}
+  .cdate .m{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+  .ctitle{font-size:17px;font-weight:700;letter-spacing:-.2px;margin:11px 0 5px;line-height:1.15}
+  .cmeta{display:flex;flex-wrap:wrap;gap:5px 14px;font-size:12.5px;color:var(--muted);margin-bottom:2px}
+  .cmeta span{display:flex;align-items:center;gap:5px}
+  .cmeta svg{width:13px;height:13px;opacity:.7;flex-shrink:0}
+  .cdesc{font-size:12.5px;color:var(--faint);line-height:1.45;margin-top:8px}
+  .csrc{font-size:11px;color:var(--faint);margin-top:9px;display:flex;align-items:center;gap:5px}
+  .csrc a{color:var(--muted);text-decoration:none;border-bottom:1px dotted var(--faint)}
+  .verify{font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:2px 6px;border-radius:5px;
+    background:var(--surface-2);color:var(--muted);margin-left:auto}
+  .verify.high{color:var(--green)}
+  .cfoot{display:flex;gap:9px;margin-top:13px}
+  .btn{flex:1;font-size:13px;font-weight:700;letter-spacing:.3px;padding:10px;border-radius:10px;border:none;
+    cursor:pointer;transition:.18s;display:flex;align-items:center;justify-content:center;gap:6px;font-family:'DM Sans'}
+  .btn svg{width:15px;height:15px}
+  .btn-save{background:var(--surface-2);color:var(--text);border:1px solid var(--line)}
+  .btn-save.on{background:var(--red);color:#fff;border-color:var(--red)}
+  .btn-reg{background:#fff;color:#0a0a0b;flex:0 0 auto;padding:10px 16px;text-decoration:none}
+
+  .empty{text-align:center;padding:60px 30px;color:var(--faint)}
+  .empty .ico{font-size:40px;margin-bottom:14px;opacity:.5}
+  .empty h3{font-family:'Bebas Neue';font-size:22px;letter-spacing:1px;color:var(--muted);margin-bottom:6px}
+  .empty p{font-size:13px;line-height:1.5}
+  .loading{text-align:center;padding:70px 20px;color:var(--muted)}
+  .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--red);border-radius:50%;
+    margin:0 auto 16px;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  .promo{margin:18px 0 4px;border-radius:16px;padding:15px 16px;background:linear-gradient(105deg,#1a0608,var(--surface));
+    border:1px solid rgba(225,29,42,.3);display:flex;align-items:center;gap:13px;text-decoration:none}
+  .promo .pi{font-family:'Bebas Neue';font-size:21px;color:var(--red);letter-spacing:1px}
+  .promo p{font-size:12.5px;color:var(--muted);line-height:1.4;flex:1}
+  .promo .go{font-size:18px;color:var(--red)}
+
+  .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:420px;
+    background:rgba(14,14,16,.9);backdrop-filter:blur(18px);border-top:1px solid var(--line);display:flex;
+    padding:9px 0 calc(9px + env(safe-area-inset-bottom));z-index:50}
+  .navbtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--faint);cursor:pointer;
+    transition:.18s;font-size:10px;font-weight:500;letter-spacing:.4px}
+  .navbtn svg{width:21px;height:21px}
+  .navbtn.active{color:var(--red)}
+  .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);
+    color:var(--bg);font-size:13px;font-weight:700;padding:11px 20px;border-radius:99px;z-index:70;opacity:0;
+    pointer-events:none;transition:.3s;white-space:nowrap}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="topbar">
+    <div class="brandrow">
+      <div class="brand">
+        <div class="mark"><svg viewBox="0 0 24 24" fill="none"><path d="M3 17h2l1.5-5h11L19 17h2M6 17v2M18 17v2M7 12l1-4h8l1 4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div>
+          <div class="wordmark">TRACK<span class="ae">LIST</span></div>
+          <div class="tagline">UAE car scene · every event, one place</div>
+        </div>
+      </div>
+      <div class="refreshmark" id="refreshmark">updating…</div>
+    </div>
+
+    <div class="vtoggle">
+      <div class="vbtn active" id="vbList" onclick="setView('list')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>List
+      </div>
+      <div class="vbtn" id="vbCal" onclick="setView('cal')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M8 2v3M16 2v3M3.5 9h17M5 5h14a1.5 1.5 0 011.5 1.5V20A1.5 1.5 0 0119 21.5H5A1.5 1.5 0 013.5 20V6.5A1.5 1.5 0 015 5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Calendar
+      </div>
+    </div>
+  </div>
+
+  <div class="filters" id="filters"></div>
+  <div class="body" id="body"><div class="loading"><div class="spin"></div>Finding UAE car events…</div></div>
+
+  <div class="nav">
+    <div class="navbtn active" onclick="goTab('all')"><svg viewBox="0 0 24 24" fill="none"><path d="M8 2v3M16 2v3M3.5 9h17M5 5h14a1.5 1.5 0 011.5 1.5V20A1.5 1.5 0 0119 21.5H5A1.5 1.5 0 013.5 20V6.5A1.5 1.5 0 015 5z" stroke="currentColor" stroke-width="1.8"/></svg>Events</div>
+    <div class="navbtn" onclick="goTab('saved')"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.5-9.5-9C.8 8.6 2.5 5 6 5c2 0 3.2 1.2 4 2.5C10.8 6.2 12 5 14 5c3.5 0 5.2 3.6 3.5 7-2.5 4.5-5.5 9-5.5 9z" stroke="currentColor" stroke-width="1.8"/></svg>Tracking</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const TYPES=['All','Track Day','Drift','Drag','Meet','Cars & Coffee','Show'];
+const MONTHS=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const MONTHS_F=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DOW=['S','M','T','W','T','F','S'];
+
+
+const SAMPLE=[
+ {id:'p1',title:'Open Pit Lane Track Night',type:'Track Day',emirate:'Dubai',venue:'Dubai Autodrome',date:_d(2),time:'5–10pm',price:'AED 350',desc:'Run your own car on the GP circuit. Helmet required.',source:'https://www.dubaiautodrome.com',confidence:'high'},
+ {id:'p2',title:'Cars & Coffee Dubai',type:'Cars & Coffee',emirate:'Dubai',venue:'Times Square Center',date:_d(2),time:'7–10am',price:'Free',desc:'Weekly morning meet, all makes welcome.',source:'https://instagram.com',confidence:'medium'},
+ {id:'p3',title:'Friday Night Drift',type:'Drift',emirate:'RAK',venue:'RAK Drift Pad',date:_d(3),price:'Drivers AED 200',desc:'Tandem battles + open practice.',source:'https://instagram.com',confidence:'medium'},
+ {id:'p4',title:'Yas Marina Trackday',type:'Track Day',emirate:'Abu Dhabi',venue:'Yas Marina Circuit',date:_d(8),price:'From AED 600',desc:'Full F1 layout. Run groups by experience.',source:'https://www.yasmarinacircuit.com',confidence:'high'},
+ {id:'p5',title:'Drag Wars — Eliminations',type:'Drag',emirate:'RAK',venue:'Al Hamra Drag Strip',date:_d(9),price:'AED 150',desc:'1/4 mile brackets, street + pro classes.',source:'https://instagram.com',confidence:'medium'},
+ {id:'p6',title:'JDM Sunset Meet',type:'Meet',emirate:'Sharjah',venue:'Al Majaz Waterfront',date:_d(10),time:'6pm+',desc:'Japanese cars only, golden-hour photos.',source:'https://instagram.com',confidence:'medium'},
+ {id:'p7',title:'Custom Show Emirates',type:'Show',emirate:'Dubai',venue:'Dubai World Trade Centre',date:_d(16),price:'From AED 75',desc:'Region\'s biggest modified car show.',source:'https://platinumlist.net',confidence:'high'}
+];
+function _d(n){const x=new Date();x.setDate(x.getDate()+n);return x.toISOString().slice(0,10);}
+
+let EVENTS=[], saved={}, filter='All', tab='all', view='list';
+let calMonth=new Date().getMonth(), calYear=new Date().getFullYear(), selDay=null;
+
+// saved set persists locally per device (localStorage works on real Vercel deploy)
+try{saved=JSON.parse(localStorage.getItem('tl_saved')||'{}');}catch(e){saved={};}
+function persist(){try{localStorage.setItem('tl_saved',JSON.stringify(saved));}catch(e){}}
+
+async function init(){
+  buildFilters();
+  EVENTS=SAMPLE.slice();
+  document.getElementById('refreshmark').innerHTML=`<b>${EVENTS.length} events</b><br>preview · live on Vercel`;
+  render();
+}
+function rel(d){const m=Math.round((Date.now()-d)/60000);if(m<60)return m+'m ago';const h=Math.round(m/60);if(h<24)return h+'h ago';return Math.round(h/24)+'d ago';}
+
+function buildFilters(){
+  const fc=document.getElementById('filters');fc.innerHTML='';
+  TYPES.forEach(t=>{const c=document.createElement('div');c.className='chip'+(t==='All'?' active':'');c.textContent=t;
+    c.onclick=()=>{filter=t;[...fc.children].forEach(x=>x.classList.remove('active'));c.classList.add('active');render();};
+    fc.appendChild(c);});
+}
+function setView(v){view=v;document.getElementById('vbList').classList.toggle('active',v==='list');
+  document.getElementById('vbCal').classList.toggle('active',v==='cal');render();}
+function goTab(t){tab=t;document.querySelectorAll('.navbtn').forEach((b,i)=>b.classList.toggle('active',(t==='all'&&i===0)||(t==='saved'&&i===1)));
+  if(t==='saved')setView('list');render();}
+
+function visible(){let l=EVENTS;if(filter!=='All')l=l.filter(e=>e.type===filter);if(tab==='saved')l=l.filter(e=>saved[e.id]);return l;}
+
+function toggleSave(id){saved[id]=!saved[id];persist();toast(saved[id]?'Tracking this event':'Removed');render();}
+
+function render(){
+  const cnt=Object.values(saved).filter(Boolean).length;
+  const body=document.getElementById('body');
+  if(view==='cal'&&tab==='all'){body.innerHTML=calendarHTML();return;}
+
+  let list=visible();
+  if(!list.length){
+    body.innerHTML=`<div class="empty"><div class="ico">${tab==='saved'?'♥':'⚑'}</div>
+      <h3>${tab==='saved'?'Nothing tracked yet':'No events'}</h3>
+      <p>${tab==='saved'?'Tap Track on any event to keep tabs on it here.':'Nothing matches this filter right now.'}</p></div>`;
+    return;
+  }
+  let html='',lastDay='';
+  list.forEach((e,i)=>{
+    if(e.date!==lastDay){html+=`<div class="dayhead">${dayLabel(e.date)}<span class="ln"></span></div>`;lastDay=e.date;}
+    html+=cardHTML(e,i);
+  });
+  if(tab==='all'&&filter==='All')html+=`<a class="promo" href="https://parthunter.ae" target="_blank"><div class="pi">PH</div><p>Prepping for a track day? Find performance parts on <b style="color:#fff">PartHunter.ae</b></p><div class="go">→</div></a>`;
+  body.innerHTML=html;
+}
+
+function cardHTML(e,i){
+  const dt=new Date(e.date+'T00:00:00');const on=!!saved[e.id];
+  const meta=[`<span><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-5.5-7-11a7 7 0 1114 0c0 5.5-7 11-7 11z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="1.8"/></svg>${esc(e.venue)}</span>`,`<span>${esc(e.emirate)}</span>`];
+  if(e.time)meta.push(`<span>${esc(e.time)}</span>`);
+  if(e.price)meta.push(`<span>${esc(e.price)}</span>`);
+  return `<div class="card ${on?'saved':''}" style="animation-delay:${i*.025}s">
+    <div class="ctop"><div><span class="ctype">${esc(e.type)}</span></div>
+      <div class="cdate"><div class="d">${dt.getDate()}</div><div class="m">${MONTHS[dt.getMonth()]}</div></div></div>
+    <div class="ctitle">${esc(e.title)}</div>
+    <div class="cmeta">${meta.join('')}</div>
+    ${e.desc?`<div class="cdesc">${esc(e.desc)}</div>`:''}
+    <div class="csrc">
+      ${e.source?`<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><a href="${esc(e.source)}" target="_blank">source</a>`:''}
+      <span class="verify ${e.confidence==='high'?'high':''}">${e.confidence==='high'?'✓ verified source':'check details'}</span>
+    </div>
+    <div class="cfoot">
+      <button class="btn btn-save ${on?'on':''}" onclick="toggleSave('${e.id}')">
+        <svg viewBox="0 0 24 24" fill="${on?'#fff':'none'}"><path d="M12 21s-7-4.5-9.5-9C.8 8.6 2.5 5 6 5c2 0 3.2 1.2 4 2.5C10.8 6.2 12 5 14 5c3.5 0 5.2 3.6 3.5 7-2.5 4.5-5.5 9-5.5 9z" stroke="currentColor" stroke-width="1.8"/></svg>${on?'Tracking':'Track'}
+      </button>
+      ${e.source?`<a class="btn btn-reg" href="${esc(e.source)}" target="_blank">Details</a>`:`<button class="btn btn-reg" onclick="toast('No link provided')">Details</button>`}
+    </div></div>`;
+}
+
+function dayLabel(d){const dt=new Date(d+'T00:00:00');const t=new Date();t.setHours(0,0,0,0);
+  const diff=Math.round((dt-t)/86400000);const wd=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dt.getDay()];
+  let p='';if(diff===0)p='TODAY · ';else if(diff===1)p='TOMORROW · ';else if(diff>1&&diff<7)p='THIS WEEK · ';
+  return p+wd+' '+dt.getDate()+' '+MONTHS[dt.getMonth()];}
+
+// ---- Calendar view ----
+function calendarHTML(){
+  const first=new Date(calYear,calMonth,1);const startDow=first.getDay();
+  const days=new Date(calYear,calMonth+1,0).getDate();
+  const counts={};EVENTS.forEach(e=>{const d=new Date(e.date+'T00:00:00');if(d.getMonth()===calMonth&&d.getFullYear()===calYear){const k=d.getDate();counts[k]=(counts[k]||0)+1;}});
+  const today=new Date();const isThisMonth=today.getMonth()===calMonth&&today.getFullYear()===calYear;
+
+  let cells='';
+  for(let i=0;i<startDow;i++)cells+=`<div class="cell empty"></div>`;
+  for(let d=1;d<=days;d++){
+    const has=counts[d]||0;const isToday=isThisMonth&&today.getDate()===d;const isSel=selDay===d;
+    let dots='';if(has)dots=`<div class="dots">${Array(Math.min(has,3)).fill('<div class="dot"></div>').join('')}</div>`;
+    cells+=`<div class="cell ${isToday?'today':''} ${isSel?'sel':''} ${!has&&!isToday?'muted':''}" onclick="selectDay(${d})">${d}${dots||'<div class="dots"></div>'}</div>`;
+  }
+
+  let detail='';
+  if(selDay){
+    const sd=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(selDay).padStart(2,'0')}`;
+    let dl=EVENTS.filter(e=>e.date===sd);if(filter!=='All')dl=dl.filter(e=>e.type===filter);
+    detail=`<div class="seldate">${selDay} ${MONTHS[calMonth]} ${calYear}<span class="ln"></span></div>`;
+    detail+=dl.length?dl.map((e,i)=>cardHTML(e,i)).join(''):`<div class="empty" style="padding:30px"><p>No events on this day.</p></div>`;
+  }
+
+  return `<div class="cal">
+    <div class="calhead"><div class="mo">${MONTHS_F[calMonth]} ${calYear}</div>
+      <div class="calnav">
+        <button onclick="calStep(-1)"><svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button onclick="calStep(1)"><svg viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div></div>
+    <div class="calgrid">${DOW.map(d=>`<div class="dow">${d}</div>`).join('')}${cells}</div>
+  </div>${detail}`;
+}
+function calStep(n){calMonth+=n;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}selDay=null;render();}
+function selectDay(d){selDay=selDay===d?null:d;render();}
+
+let tt;function toast(m){const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),1900);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+init();
+</script>
+</body>
+</html>

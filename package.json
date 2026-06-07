@@ -1,0 +1,9 @@
+{
+  "name": "tracklist",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TrackList — self-populating UAE car events app, powered by Claude web search",
+  "dependencies": {
+    "@vercel/kv": "^1.0.1"
+  }
+}
