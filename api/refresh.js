@@ -4,11 +4,14 @@
 // The app reads the stored list; it never calls Claude on page load.
 
 import { Redis } from '@upstash/redis';
+import Anthropic from '@anthropic-ai/sdk';
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL,
   token: process.env.KV_REST_API_TOKEN,
 });
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const SYSTEM = `You are the event-sourcing engine for TrackList, a UAE car-scene events app.
 Use the web_search tool to find upcoming car-related events in the United Arab Emirates over the
@@ -86,90 +89,52 @@ export default async function handler(req, res) {
 }
 
 async function crawl(debug) {
-  // Multi-turn loop so Claude can run several searches before answering.
-  const messages = [{
-    role: 'user',
-    content: 'Find the UAE car events for the next ~35 days now. Search thoroughly, then return the JSON array.',
-  }];
-
-  let finalText = '';
-  let searchCount = 0;
   let rateLimited = false;
-  let rateLimitWaits = 0;
-  for (let turn = 0; turn < 6; turn++) {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 4000,
-        system: SYSTEM,
-        messages,
-        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 6 }],
-      }),
+  let resp;
+  // Single SDK call. The web_search tool runs server-side: Claude searches,
+  // reads the (encrypted) results, re-searches if needed, and returns the final
+  // answer all within this one completion. The SDK handles the result round-trip,
+  // which is what the old hand-rolled fetch loop got wrong.
+  try {
+    resp = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 4000,
+      system: SYSTEM,
+      messages: [{
+        role: 'user',
+        content: 'Find current UAE car events for the next ~35 days. Search thoroughly across venues and categories, then return ONLY the JSON array.',
+      }],
+      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 6 }],
     });
-    const data = await r.json();
-    // Rate limited: wait for the per-minute window to reset, then retry the same turn.
-    // Safe now that the function can run up to 300s with Fluid Compute.
-    if (data.error && /rate limit/i.test(data.error.message || '')) {
-      if (rateLimitWaits >= 2) { rateLimited = true; break; } // give up after 2 waits
-      rateLimitWaits++;
-      await new Promise((s) => setTimeout(s, 20000)); // wait 20s
-      turn--; // redo this turn
-      continue;
-    }
-    // Surface any other real API error (bad model name, auth, etc.).
-    if (data.error) {
-      const msg = data.error.message || JSON.stringify(data.error);
-      throw new Error('Anthropic API: ' + msg);
-    }
-
-    messages.push({ role: 'assistant', content: data.content });
-
-    // Count server-side searches Claude ran.
-    searchCount += (data.content || []).filter((b) => b.type === 'server_tool_use' || b.type === 'web_search_tool_result').length;
-
-    // Gather any text Claude has emitted so far.
-    finalText = (data.content || [])
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
-      .join('\n')
-      .trim();
-
-    // If Claude stopped to use a tool, the API already ran the search server-side
-    // (web_search is a server tool), so we just continue the loop to let it read results.
-    if (data.stop_reason === 'tool_use') continue;
-    break;
-  }
-
-  // If we never got a JSON array (e.g. ran out of turns mid-search), ask once more
-  // for the final answer based on everything searched so far — no new searches.
-  if (!/\[/.test(finalText)) {
-    messages.push({
-      role: 'user',
-      content: 'Based on the search results above, output the final JSON array of events now. ONLY the JSON array, no prose. If you genuinely found nothing, return [].',
-    });
-    try {
-      const r2 = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 4000, system: SYSTEM, messages }),
-      });
-      const d2 = await r2.json();
-      if (!d2.error) {
-        const t2 = (d2.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
-        if (t2) finalText = t2;
+  } catch (err) {
+    if (err && (err.status === 429 || /rate limit/i.test(err.message || ''))) {
+      // One wait-and-retry; Fluid Compute gives us the time budget for it.
+      await new Promise((s) => setTimeout(s, 20000));
+      try {
+        resp = await anthropic.messages.create({
+          model: 'claude-sonnet-4-5',
+          max_tokens: 4000,
+          system: SYSTEM,
+          messages: [{
+            role: 'user',
+            content: 'Find current UAE car events for the next ~35 days. Search thoroughly across venues and categories, then return ONLY the JSON array.',
+          }],
+          tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 6 }],
+        });
+      } catch (err2) {
+        if (err2 && (err2.status === 429 || /rate limit/i.test(err2.message || ''))) {
+          return { events: [], raw: '', searchCount: 0, rateLimited: true };
+        }
+        throw new Error('Anthropic API: ' + (err2 && err2.message || err2));
       }
-    } catch (e) { /* keep what we have */ }
+    } else {
+      throw new Error('Anthropic API: ' + (err && err.message || err));
+    }
   }
+
+  const blocks = resp.content || [];
+  const searchCount = blocks.filter((b) => b.type === 'server_tool_use' || b.type === 'web_search_tool_result').length;
+  const finalText = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
 
   return { events: parseEvents(finalText), raw: finalText, searchCount, rateLimited };
 }
