@@ -53,14 +53,20 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { events, raw, searchCount } = await crawl(debug);
+    const { events, raw, searchCount, rateLimited } = await crawl(debug);
+    // Don't overwrite existing good data with an empty rate-limited result.
+    if (events.length === 0 && rateLimited) {
+      const out = { ok: false, rateLimited: true, count: 0, note: 'hit per-minute rate limit before finding events; raise tier or try again' };
+      if (debug) { out.searchCount = searchCount; out.rawFirst800 = (raw || '').slice(0, 800); }
+      return res.status(200).json(out);
+    }
     const payload = {
       events,
       updatedAt: new Date().toISOString(),
       count: events.length,
     };
     await redis.set('tracklist:events', payload);
-    const out = { ok: true, count: events.length, updatedAt: payload.updatedAt };
+    const out = { ok: true, count: events.length, updatedAt: payload.updatedAt, rateLimited };
     if (debug) { out.searchCount = searchCount; out.rawFirst800 = (raw || '').slice(0, 800); }
     return res.status(200).json(out);
   } catch (err) {
@@ -78,7 +84,8 @@ async function crawl(debug) {
 
   let finalText = '';
   let searchCount = 0;
-  for (let turn = 0; turn < 4; turn++) {
+  let rateLimited = false;
+  for (let turn = 0; turn < 3; turn++) {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -88,18 +95,17 @@ async function crawl(debug) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: 3000,
+        max_tokens: 2000,
         system: SYSTEM,
         messages,
-        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 4 }],
+        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
       }),
     });
     const data = await r.json();
-    // If we hit the per-minute rate limit, wait once and retry the same turn.
+    // Rate limited: stop now and report it, rather than waiting (which causes timeouts).
     if (data.error && /rate limit/i.test(data.error.message || '')) {
-      await new Promise((s) => setTimeout(s, 15000)); // wait 15s for the window to reset
-      turn--; // redo this turn
-      continue;
+      rateLimited = true;
+      break;
     }
     // Surface any other real API error (bad model name, auth, etc.).
     if (data.error) {
@@ -125,7 +131,7 @@ async function crawl(debug) {
     break;
   }
 
-  return { events: parseEvents(finalText), raw: finalText, searchCount };
+  return { events: parseEvents(finalText), raw: finalText, searchCount, rateLimited };
 }
 
 function parseEvents(text) {
