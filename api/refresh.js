@@ -85,6 +85,7 @@ async function crawl(debug) {
   let finalText = '';
   let searchCount = 0;
   let rateLimited = false;
+  let rateLimitWaits = 0;
   for (let turn = 0; turn < 3; turn++) {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -102,10 +103,14 @@ async function crawl(debug) {
       }),
     });
     const data = await r.json();
-    // Rate limited: stop now and report it, rather than waiting (which causes timeouts).
+    // Rate limited: wait for the per-minute window to reset, then retry the same turn.
+    // Safe now that the function can run up to 300s with Fluid Compute.
     if (data.error && /rate limit/i.test(data.error.message || '')) {
-      rateLimited = true;
-      break;
+      if (rateLimitWaits >= 2) { rateLimited = true; break; } // give up after 2 waits
+      rateLimitWaits++;
+      await new Promise((s) => setTimeout(s, 20000)); // wait 20s
+      turn--; // redo this turn
+      continue;
     }
     // Surface any other real API error (bad model name, auth, etc.).
     if (data.error) {
