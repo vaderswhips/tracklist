@@ -78,7 +78,7 @@ async function crawl(debug) {
 
   let finalText = '';
   let searchCount = 0;
-  for (let turn = 0; turn < 6; turn++) {
+  for (let turn = 0; turn < 4; turn++) {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -88,14 +88,20 @@ async function crawl(debug) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: 4000,
+        max_tokens: 3000,
         system: SYSTEM,
         messages,
-        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 8 }],
+        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 4 }],
       }),
     });
     const data = await r.json();
-    // Surface the real API error (e.g. web search not enabled, bad model name).
+    // If we hit the per-minute rate limit, wait once and retry the same turn.
+    if (data.error && /rate limit/i.test(data.error.message || '')) {
+      await new Promise((s) => setTimeout(s, 15000)); // wait 15s for the window to reset
+      turn--; // redo this turn
+      continue;
+    }
+    // Surface any other real API error (bad model name, auth, etc.).
     if (data.error) {
       const msg = data.error.message || JSON.stringify(data.error);
       throw new Error('Anthropic API: ' + msg);
