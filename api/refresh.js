@@ -28,28 +28,48 @@ Respond with ONLY a JSON array (no prose, no markdown fences), each item:
 "confidence" is "high" if from an official venue/ticketing source, else "medium".`;
 
 export default async function handler(req, res) {
-  // Protect the endpoint: Vercel Cron sends a bearer token you set as CRON_SECRET.
+  // Auth: Vercel Cron sends Bearer <CRON_SECRET>. For manual browser testing,
+  // you can also pass ?debug=<CRON_SECRET> in the URL.
   const auth = req.headers['authorization'];
-  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ error: 'unauthorized' });
+  const debugKey = req.query && req.query.debug;
+  const authedByHeader = process.env.CRON_SECRET && auth === `Bearer ${process.env.CRON_SECRET}`;
+  const authedByQuery = process.env.CRON_SECRET && debugKey === process.env.CRON_SECRET;
+  const noSecretSet = !process.env.CRON_SECRET;
+
+  if (!authedByHeader && !authedByQuery && !noSecretSet) {
+    return res.status(401).json({ error: 'unauthorized', hint: 'add ?debug=YOUR_CRON_SECRET to the URL to test in a browser' });
+  }
+
+  const debug = authedByQuery || (req.query && req.query.debug === '1');
+
+  // Surface config problems immediately rather than failing deep in the call.
+  const cfg = {
+    hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
+    hasRedisUrl: !!process.env.KV_REST_API_URL,
+    hasRedisToken: !!process.env.KV_REST_API_TOKEN,
+  };
+  if (!cfg.hasAnthropicKey || !cfg.hasRedisUrl || !cfg.hasRedisToken) {
+    return res.status(500).json({ error: 'missing environment variables', cfg });
   }
 
   try {
-    const events = await crawl();
+    const { events, raw, searchCount } = await crawl(debug);
     const payload = {
       events,
       updatedAt: new Date().toISOString(),
       count: events.length,
     };
     await redis.set('tracklist:events', payload);
-    return res.status(200).json({ ok: true, count: events.length, updatedAt: payload.updatedAt });
+    const out = { ok: true, count: events.length, updatedAt: payload.updatedAt };
+    if (debug) { out.searchCount = searchCount; out.rawFirst800 = (raw || '').slice(0, 800); }
+    return res.status(200).json(out);
   } catch (err) {
     console.error('refresh failed', err);
-    return res.status(500).json({ error: String(err) });
+    return res.status(500).json({ error: String(err && err.message || err), stack: debug ? String(err && err.stack) : undefined });
   }
 }
 
-async function crawl() {
+async function crawl(debug) {
   // Multi-turn loop so Claude can run several searches before answering.
   const messages = [{
     role: 'user',
@@ -57,6 +77,7 @@ async function crawl() {
   }];
 
   let finalText = '';
+  let searchCount = 0;
   for (let turn = 0; turn < 6; turn++) {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -70,13 +91,20 @@ async function crawl() {
         max_tokens: 4000,
         system: SYSTEM,
         messages,
-        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 8 }],
+        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 8 }],
       }),
     });
     const data = await r.json();
-    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    // Surface the real API error (e.g. web search not enabled, bad model name).
+    if (data.error) {
+      const msg = data.error.message || JSON.stringify(data.error);
+      throw new Error('Anthropic API: ' + msg);
+    }
 
     messages.push({ role: 'assistant', content: data.content });
+
+    // Count server-side searches Claude ran.
+    searchCount += (data.content || []).filter((b) => b.type === 'server_tool_use' || b.type === 'web_search_tool_result').length;
 
     // Gather any text Claude has emitted so far.
     finalText = (data.content || [])
@@ -91,7 +119,7 @@ async function crawl() {
     break;
   }
 
-  return parseEvents(finalText);
+  return { events: parseEvents(finalText), raw: finalText, searchCount };
 }
 
 function parseEvents(text) {
