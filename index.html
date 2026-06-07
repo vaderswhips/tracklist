@@ -189,9 +189,30 @@ async function init(){
     const data=await r.json();
     EVENTS=(data.events||[]).map(e=>({...e}));
     const u=data.updatedAt?new Date(data.updatedAt):null;
-    document.getElementById('refreshmark').innerHTML=u?`<b>${EVENTS.length} events</b><br>updated ${rel(u)}`:'no data yet';
+    // If the live crawl hasn't populated yet, fall back to the curated seed list
+    // so the app is never empty. Swaps to live data automatically once available.
+    if(EVENTS.length===0){
+      try{
+        const sr=await fetch('/seed-events.json');
+        const sd=await sr.json();
+        EVENTS=(sd.events||[]).map(e=>({...e}));
+        document.getElementById('refreshmark').innerHTML=`<b>${EVENTS.length} events</b><br>curated list`;
+      }catch(se){
+        document.getElementById('refreshmark').textContent='no data yet';
+      }
+    }else{
+      document.getElementById('refreshmark').innerHTML=u?`<b>${EVENTS.length} events</b><br>updated ${rel(u)}`:`<b>${EVENTS.length} events</b>`;
+    }
   }catch(e){
-    document.getElementById('refreshmark').textContent='offline';
+    // API unreachable — still try the seed so the app shows something.
+    try{
+      const sr=await fetch('/seed-events.json');
+      const sd=await sr.json();
+      EVENTS=(sd.events||[]).map(e=>({...e}));
+      document.getElementById('refreshmark').innerHTML=`<b>${EVENTS.length} events</b><br>curated list`;
+    }catch(se){
+      document.getElementById('refreshmark').textContent='offline';
+    }
   }
   render();
 }
